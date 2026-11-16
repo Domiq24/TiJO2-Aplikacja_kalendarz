@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Widok dnia: {{ day_date.strftime('%Y-%m-%d') }}</h2>
+    <div>
+        <a href="{{ url_for('month_view', year=day_date.year, month=day_date.month) }}" class="btn btn-secondary">Powrót do miesiąca</a>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEventModal">Dodaj wydarzenie</button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Widok osi czasu (24 godziny, wysokość 1440px -> 1 minuta = 1px) -->
+    <div class="col-md-9">
+        <div class="card shadow-sm p-3 position-relative bg-white mb-4" style="height: 1440px;">
+            {% for hour in range(24) %}
+                <div style="position: absolute; top: {{ hour * 60 }}px; left: 0; right: 0; border-top: 1px solid #e9ecef; font-size: 0.8rem; color: #6c757d; padding-left: 5px;">
+                    {{ "%02d:00" | format(hour) }}
+                </div>
+            {% endfor %}
+
+            <!-- Bloki wydarzeń pozycjonowane dynamicznie obok siebie -->
+            {% for event in events %}
+                {% set start_minutes = event.start_time.hour * 60 + event.start_time.minute %}
+                {% set end_minutes = event.end_time.hour * 60 + event.end_time.minute %}
+                {% set duration = end_minutes - start_minutes %}
+                {% if duration < 15 %}{% set duration = 15 %}{% endif %}
+
+                <div class="event-block bg-primary text-white p-2 rounded shadow-sm overflow-hidden"
+                     style="position: absolute;
+                            top: {{ start_minutes }}px;
+                            height: {{ duration }}px;
+                            left: calc(70px + (100% - 80px) * {{ event.col_index }} / {{ event.total_cols }});
+                            width: calc((100% - 80px) / {{ event.total_cols }} - 4px);
+                            cursor: pointer;
+                            z-index: 2;
+                            opacity: 0.95;"
+                     data-bs-toggle="modal" 
+                     data-bs-target="#eventModal{{ event._id }}">
+                    <div class="fw-bold text-truncate" style="font-size: 0.9rem;">{{ event.title }}</div>
+                    <small>{{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}</small>
+                </div>
+
+                <!-- Modal szczegółów i edycji wydarzenia -->
+                <div class="modal fade" id="eventModal{{ event._id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Szczegóły wydarzenia</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Nazwa:</strong> {{ event.title }}</p>
+                                <p><strong>Czas trwania:</strong> {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}</p>
+                                <p><strong>Opis:</strong> {{ event.description if event.description else 'Brak opisu' }}</p>
+
+                                <hr>
+                                <h6 class="mt-3">Edytuj wydarzenie</h6>
+                                <form action="{{ url_for('edit_event', event_id=event._id) }}" method="POST">
+                                    <input type="hidden" name="date" value="{{ date_str }}">
+                                    <div class="mb-3">
+                                        <label class="form-label">Nazwa</label>
+                                        <input type="text" class="form-control" name="title" value="{{ event.title }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Godzina rozpoczęcia</label>
+                                        <input type="time" class="form-control" name="start_time" value="{{ event.start_time.strftime('%H:%M') }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Godzina zakończenia</label>
+                                        <input type="time" class="form-control" name="end_time" value="{{ event.end_time.strftime('%H:%M') }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Opis</label>
+                                        <textarea class="form-control" name="description">{{ event.description }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Cykliczność</label>
+                                        <select class="form-select" name="recurrence">
+                                            <option value="none" {% if not event or event.recurrence == 'none' %}selected{% endif %}>Jednorazowe</option>
+                                            <option value="weekly" {% if event and event.recurrence == 'weekly' %}selected{% endif %}>Co tydzień</option>
+                                            <option value="monthly" {% if event and event.recurrence == 'monthly' %}selected{% endif %}>Co miesiąc</option>
+                                            <option value="yearly" {% if event and event.recurrence == 'yearly' %}selected{% endif %}>Co rok</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 mb-2">Zapisz zmiany</button>
+                                </form>
+
+                                <!-- Przycisk usuwania wydarzenia -->
+                                <form action="{{ url_for('delete_event', event_id=event._id) }}" method="POST">
+                                    <input type="hidden" name="date" value="{{ date_str }}">
+                                    <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Czy na pewno chcesz usunąć to wydarzenie?');">Usuń wydarzenie</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Panel boczny tekstowy -->
+    <div class="col-md-3">
+        <div class="card shadow-sm p-3">
+            <h5 class="card-title mb-3">Wydarzenia dnia</h5>
+            {% if events %}
+                <ul class="list-group list-group-flush">
+                    {% for event in events %}
+                        <li class="list-group-item px-0">
+                            <strong>{{ event.title }}</strong><br>
+                            <small class="text-muted">{{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}</small>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">Brak wydarzeń w tym dniu.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal dodawania nowego wydarzenia -->
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_event') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Dodaj nowe wydarzenie</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="date" value="{{ date_str }}">
+                    <div class="mb-3">
+                        <label class="form-label">Nazwa wydarzenia</label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Godzina rozpoczęcia</label>
+                        <input type="time" class="form-control" name="start_time" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Godzina zakończenia</label>
+                        <input type="time" class="form-control" name="end_time" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Opis</label>
+                        <textarea class="form-control" name="description"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cykliczność</label>
+                        <select class="form-select" name="recurrence">
+                            <option value="none" {% if not event or event.recurrence == 'none' %}selected{% endif %}>Jednorazowe</option>
+                            <option value="weekly" {% if event and event.recurrence == 'weekly' %}selected{% endif %}>Co tydzień</option>
+                            <option value="monthly" {% if event and event.recurrence == 'monthly' %}selected{% endif %}>Co miesiąc</option>
+                            <option value="yearly" {% if event and event.recurrence == 'yearly' %}selected{% endif %}>Co rok</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-success">Dodaj</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

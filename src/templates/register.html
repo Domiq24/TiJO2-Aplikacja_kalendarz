@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card shadow p-4">
+            <h3 class="text-center mb-3">Rejestracja</h3>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Nazwa użytkownika</label>
+                    <input type="text" class="form-control" name="username" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Hasło</label>
+                    <input type="password" class="form-control" name="password" required>
+                </div>
+                <!-- Nowe pole: Powtórz hasło -->
+                <div class="mb-3">
+                    <label class="form-label">Powtórz hasło</label>
+                    <input type="password" class="form-control" name="confirm_password" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mb-3">Zarejestruj się</button>
+            </form>
+            <div class="text-center">
+                <a href="{{ url_for('login') }}">Masz już konto? Zaloguj się</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

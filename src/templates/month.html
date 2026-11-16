@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ month_name }} {{ year }}</h2>
+        <div>
+            <a href="{{ url_for('export_month_ics', year=year, month=month) }}" class="btn btn-outline-secondary me-2">📥 Eksportuj ICS</a>
+            <a href="{{ url_for('month_view', year=prev_year, month=prev_month) }}" class="btn btn-outline-primary">&larr; Poprzedni</a>
+            <a href="{{ url_for('month_view', year=next_year, month=next_month) }}" class="btn btn-outline-primary">Następny &rarr;</a>
+        </div>
+    </div>
+
+    <table class="table table-bordered text-center align-middle" style="table-layout: fixed;">
+        <thead class="table-dark">
+            <tr>
+                <th>Pon</th><th>Wt</th><th>Śr</th><th>Czw</th><th>Pt</th><th>Sob</th><th>Nied</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in calendar_matrix %}
+                <tr>
+                    {% for day in week %}
+                        <td style="height: 100px; vertical-align: top; position: relative;">
+                            {% if day != 0 %}
+                                {% set day_str = "%04d-%02d-%02d" | format(year, month, day) %}
+                                <a href="{{ url_for('day_view', date_str=day_str) }}" class="text-decoration-none text-dark d-block h-100 w-100">
+                                    <div class="fw-bold mb-1">{{ day }}</div>
+                                    {% if day_str in event_counts and event_counts[day_str] > 0 %}
+                                        <span class="badge bg-primary position-absolute bottom-0 end-0 m-2">
+                                            {{ event_counts[day_str] }}
+                                        </span>
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
